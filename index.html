@@ -265,12 +265,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);min-height:100vh
     <p>請確認車輛並填寫租賃資訊</p>
   </div>
 
-  <div id="no-car" class="no-car">
-    <div style="font-size:44px;margin-bottom:10px">🚗</div>
-    <p style="font-size:13px;line-height:1.8;color:var(--muted)">請先從「車輛一覽」<br>選擇您要預約的車輛</p>
-  </div>
 
-  <div id="booking-form" style="display:none">
     <div class="selected-car-bar">
       <div class="sc-img" id="sc-img-wrap">🚗</div>
       <div style="flex:1;min-width:0">
@@ -626,7 +621,7 @@ async function loadCars() {
         cars.push({ id, name: brand + ' ' + carmodel, model: type + '・' + seats, photo: photo, price, seats, fuel, trans, status: 'available' });
       }
     }
-    if (cars.length > 0) renderCars(cars);
+    if (cars.length > 0) { renderCars(cars); populateCarSelector(); }
     else document.getElementById('car-list').innerHTML = '<div class="empty"><div class="empty-icon">🚗</div><p>目前沒有可用車輛</p></div>';
     updateAdminStats();
   } catch(e) {
@@ -672,13 +667,31 @@ function filterByType(type, btn) {
   else renderCars(cars.filter(c => c.model.includes(type)));
 }
 
+function populateCarSelector() {
+  const sel = document.getElementById('car-selector');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- 請選擇車輛 --</option>';
+  cars.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name + '（' + c.id + '）・¥' + Number(c.price).toLocaleString() + '/日';
+    sel.appendChild(opt);
+  });
+}
+
+function selectCarFromDropdown(id) {
+  if (!id) { selectedCar = null; document.getElementById('selected-car-bar-wrap').style.display = 'none'; return; }
+  selectCar(id);
+}
+
 function selectCar(id) {
   selectedCar = cars.find(c => c.id === id);
   if (!selectedCar) return;
   document.getElementById('sc-name').textContent = selectedCar.name;
-  document.getElementById('sc-detail').textContent = selectedCar.id + '・' + selectedCar.model + '・NT$' + Number(selectedCar.price).toLocaleString() + '/日';
-  document.getElementById('no-car').style.display = 'none';
-  document.getElementById('booking-form').style.display = 'block';
+  document.getElementById('sc-detail').textContent = selectedCar.id + '・' + selectedCar.model + '・¥' + Number(selectedCar.price).toLocaleString() + '/日';
+  document.getElementById('selected-car-bar-wrap').style.display = 'block';
+  const sel = document.getElementById('car-selector');
+  if (sel) sel.value = selectedCar.id;
   if (!lineUser) document.getElementById('line-login-banner').style.display = 'flex';
   calcPrice();
   showPage('booking', document.querySelectorAll('.nav-tab')[1]);
@@ -826,8 +839,8 @@ async function submitBooking() {
 
 function resetForm() {
   selectedCar = null;
-  document.getElementById('no-car').style.display = 'block';
-  document.getElementById('booking-form').style.display = 'none';
+  document.getElementById('selected-car-bar-wrap').style.display = 'none';
+  document.getElementById('car-selector').value = '';
   document.getElementById('price-preview').style.display = 'none';
   setMinDates();
 }
