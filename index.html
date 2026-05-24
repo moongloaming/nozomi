@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NOZOMI 日本租車</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --red:#C0392B;--red-dark:#96281B;--red-light:#FDECEA;
+  --ink:#1a1a1a;--ink2:#444;--muted:#888;
+  --border:#e8e4df;--bg:#faf8f5;--white:#fff;
+  --green:#06C755;--shadow:0 2px 12px rgba(0,0,0,0.07);
+  --r:10px;
+}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);min-height:100vh;color:var(--ink)}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px}
+#loading h1{font-family:'Shippori Mincho',serif;font-size:28px;color:white;letter-spacing:0.15em}
+#loading p{font-size:13px;color:rgba(255,255,255,0.5);letter-spacing:0.1em}
+.spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:var(--red);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* HEADER */
+.header{background:var(--ink);padding:14px 16px;display:flex;align-items:center;position:sticky;top:0;z-index:100}
+.header-logo{font-family:'Shippori Mincho',serif;font-size:18px;font-weight:700;color:white;letter-spacing:0.05em;flex:1}
+.header-logo span{color:var(--red)}
+.header-sub{font-size:10px;color:#888;letter-spacing:0.1em}
+.user-avatar{width:34px;height:34px;border-radius:50%;border:2px solid #444;object-fit:cover;cursor:pointer}
+.user-avatar-placeholder{width:34px;height:34px;border-radius:50%;border:2px solid #444;background:#333;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer}
+.admin-btn{background:transparent;border:1px solid #444;color:#aaa;padding:5px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;margin-left:8px}
+
+/* NAV */
+.nav{display:flex;background:white;border-bottom:1px solid var(--border)}
+.nav-tab{flex:1;padding:11px 6px 9px;border:none;background:none;font-size:11px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;border-bottom:2px solid transparent;font-family:'Noto Sans JP',sans-serif;letter-spacing:0.05em;transition:all 0.2s}
+.nav-tab.active{color:var(--red);border-bottom-color:var(--red)}
+.nav-icon{font-size:18px}
+
+/* PAGES */
+.page{display:none;padding:16px;animation:fadeIn 0.2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* SECTION HEADER */
+.sec-head{margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.sec-head h2{font-family:'Shippori Mincho',serif;font-size:20px;font-weight:700;letter-spacing:0.05em}
+.sec-head p{font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:0.05em}
+
+/* SEARCH */
+.search-wrap{display:flex;gap:8px;margin-bottom:16px}
+.search-input{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:white;outline:none;font-family:'Noto Sans JP',sans-serif;transition:border-color 0.2s}
+.search-input:focus{border-color:var(--red)}
+
+/* FILTER TABS */
+.filter-tabs{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
+.filter-tab{padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:white;color:var(--muted);white-space:nowrap;font-family:'Noto Sans JP',sans-serif;transition:all 0.2s}
+.filter-tab.active{background:var(--ink);color:white;border-color:var(--ink)}
+
+/* CAR CARDS */
+.car-list{display:flex;flex-direction:column;gap:14px}
+.car-card{background:white;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);transition:transform 0.15s;cursor:pointer}
+.car-card:active{transform:scale(0.99)}
+.car-img{height:160px;display:flex;align-items:center;justify-content:center;background:#f0ede8;position:relative;overflow:hidden}
+.car-img img{width:100%;height:100%;object-fit:cover}
+.car-img-placeholder{font-size:72px}
+.car-flag{position:absolute;top:10px;left:10px;font-size:20px}
+.car-badge{position:absolute;top:10px;right:10px;padding:4px 10px;border-radius:3px;font-size:11px;font-weight:500;letter-spacing:0.05em}
+.badge-ok{background:#e8f5e9;color:#2e7d32}
+.badge-ng{background:#fdecea;color:var(--red-dark)}
+.car-body{padding:14px}
+.car-name{font-family:'Shippori Mincho',serif;font-size:17px;font-weight:700}
+.car-id{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.08em}
+.car-specs{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.spec{font-size:11px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:3px}
+.car-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+.price{font-size:18px;font-weight:700;color:var(--red);font-family:'Shippori Mincho',serif}
+.price span{font-size:11px;color:var(--muted);font-family:'Noto Sans JP',sans-serif;font-weight:400}
+.btn-book{background:var(--red);color:white;border:none;padding:9px 20px;border-radius:5px;font-size:13px;font-weight:500;cursor:pointer;font-family:'Noto Sans JP',sans-serif;letter-spacing:0.05em;transition:background 0.2s}
+.btn-book:hover{background:var(--red-dark)}
+.btn-book:disabled{background:#ccc;cursor:not-allowed}
+
+/* FORM */
+.form-card{background:white;border-radius:var(--r);padding:20px;box-shadow:var(--shadow);margin-bottom:16px;border:1px solid var(--border)}
+.form-section{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.15em;margin:20px 0 12px;text-transform:uppercase}
+.form-section:first-child{margin-top:0}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:500;color:var(--ink);margin-bottom:6px;display:flex;align-items:center;gap:4px;letter-spacing:0.05em}
+.required{color:var(--red);font-size:11px}
+.form-input,.form-select{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:6px;font-size:14px;color:var(--ink);background:white;outline:none;font-family:'Noto Sans JP',sans-serif;transition:border-color 0.2s}
+.form-input:focus,.form-select:focus{border-color:var(--red)}
+.form-input.error,.form-select.error{border-color:var(--red);background:#fff8f8}
+.form-hint{font-size:11px;color:var(--muted);margin-top:4px}
+.form-error{font-size:11px;color:var(--red);margin-top:4px;display:none}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* SELECTED CAR BAR */
+.selected-car-bar{display:flex;align-items:center;gap:12px;background:var(--ink);border-radius:8px;padding:12px 16px;margin-bottom:16px}
+.sc-img{width:56px;height:42px;border-radius:4px;background:#333;object-fit:cover;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px}
+.sc-img img{width:100%;height:100%;object-fit:cover;border-radius:4px}
+.sc-name{font-family:'Shippori Mincho',serif;font-size:15px;font-weight:700;color:white}
+.sc-detail{font-size:11px;color:#aaa;margin-top:2px}
+.sc-change{margin-left:auto;background:transparent;border:1px solid #555;color:#aaa;padding:5px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+
+/* PRICE PREVIEW */
+.price-preview{background:var(--red-light);border-radius:8px;padding:14px 16px;margin-bottom:14px;display:none;border-left:3px solid var(--red)}
+.price-preview-row{display:flex;justify-content:space-between;align-items:center}
+.price-total{font-size:22px;font-weight:700;color:var(--red);font-family:'Shippori Mincho',serif}
+.price-breakdown{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* LINE LOGIN BANNER */
+.line-banner{background:var(--green);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.line-banner-icon{font-size:24px}
+.line-banner-text{flex:1}
+.line-banner-text strong{font-size:13px;color:white;display:block}
+.line-banner-text span{font-size:11px;color:rgba(255,255,255,0.8)}
+.btn-line-login{background:white;color:var(--green);border:none;padding:7px 14px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans JP',sans-serif;white-space:nowrap}
+
+/* USER INFO BAR */
+.user-bar{background:#e8f5e9;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.user-bar img{width:32px;height:32px;border-radius:50%;object-fit:cover}
+.user-bar-name{font-size:13px;font-weight:500;color:#2e7d32}
+.user-bar-email{font-size:11px;color:#4caf50}
+
+/* SUBMIT BTN */
+.btn-submit{width:100%;background:var(--red);color:white;border:none;padding:15px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans JP',sans-serif;letter-spacing:0.1em;transition:background 0.2s}
+.btn-submit:hover{background:var(--red-dark)}
+.btn-submit:disabled{background:#ccc;cursor:not-allowed}
+
+/* BOOKING CARDS */
+.booking-card{background:white;border-radius:var(--r);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);border:1px solid var(--border);border-top:3px solid var(--red)}
+.booking-card.cancelled{border-top-color:#ccc;opacity:0.65}
+.booking-card.completed{border-top-color:#aaa}
+.bk-header{display:flex;justify-content:space-between;align-items:center}
+.bk-id{font-size:11px;color:var(--muted);letter-spacing:0.08em}
+.bk-status{font-size:11px;font-weight:500;padding:3px 10px;border-radius:3px;letter-spacing:0.05em}
+.st-confirmed{background:#e8f5e9;color:#2e7d32}
+.st-cancelled{background:#fdecea;color:var(--red-dark)}
+.st-completed{background:#f5f5f5;color:#777}
+.bk-car{font-family:'Shippori Mincho',serif;font-size:16px;font-weight:700;margin-top:10px}
+.bk-dates{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.8}
+.bk-price{font-size:18px;font-weight:700;color:var(--red);font-family:'Shippori Mincho',serif;margin-top:8px}
+.bk-actions{display:flex;gap:8px;margin-top:12px}
+.btn-cancel{flex:1;padding:9px;border:1px solid var(--red);border-radius:6px;color:var(--red);background:none;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+.btn-detail{flex:1;padding:9px;border:1px solid var(--border);border-radius:6px;color:var(--muted);background:none;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+
+/* DETAIL MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;align-items:flex-end}
+.modal-overlay.show{display:flex}
+.modal-sheet{background:white;border-radius:16px 16px 0 0;padding:24px;width:100%;max-height:90vh;overflow-y:auto}
+.modal-handle{width:36px;height:3px;background:#ddd;border-radius:2px;margin:0 auto 20px}
+.modal-title{font-family:'Shippori Mincho',serif;font-size:20px;font-weight:700;margin-bottom:4px}
+.modal-subtitle{font-size:12px;color:var(--muted);margin-bottom:20px;letter-spacing:0.08em}
+
+/* DETAIL ROWS */
+.detail-car-bar{display:flex;align-items:center;gap:12px;background:var(--ink);border-radius:8px;padding:14px 16px;margin-bottom:20px}
+.detail-rows{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.detail-row{display:flex;padding:11px 14px;border-bottom:1px solid var(--border)}
+.detail-row:last-child{border-bottom:none}
+.detail-label{font-size:12px;color:var(--muted);width:90px;flex-shrink:0;padding-top:1px}
+.detail-value{font-size:14px;color:var(--ink);font-weight:500;flex:1}
+.detail-total{display:flex;justify-content:space-between;align-items:center;background:var(--red-light);border-radius:8px;padding:14px 16px;margin-bottom:20px;border-left:3px solid var(--red)}
+.detail-total-val{font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700;color:var(--red)}
+.btn-close{width:100%;padding:13px;border:1px solid var(--border);border-radius:8px;background:white;font-size:14px;color:var(--muted);cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+
+/* ADMIN */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.stat{background:var(--bg);border-radius:8px;padding:14px;text-align:center;border:1px solid var(--border)}
+.stat-num{font-family:'Shippori Mincho',serif;font-size:26px;font-weight:700;color:var(--red)}
+.stat-lbl{font-size:11px;color:var(--muted);margin-top:3px;letter-spacing:0.05em}
+.admin-tabs{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto}
+.admin-tab{padding:7px 14px;border-radius:4px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:white;color:var(--muted);white-space:nowrap;font-family:'Noto Sans JP',sans-serif}
+.admin-tab.active{background:var(--ink);color:white;border-color:var(--ink)}
+.admin-item{display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:8px;padding:12px 14px;margin-bottom:8px;border:1px solid var(--border)}
+.admin-item-left h4{font-size:14px;font-weight:500}
+.admin-item-left p{font-size:11px;color:var(--muted);margin-top:3px}
+.btn-approve{background:var(--red);color:white;border:none;padding:7px 14px;border-radius:4px;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif}
+.btn-reject{background:white;color:var(--muted);border:1px solid var(--border);padding:7px 14px;border-radius:4px;font-size:12px;cursor:pointer;margin-left:6px;font-family:'Noto Sans JP',sans-serif}
+
+/* NOTICE BOX */
+.notice{background:#fff8e1;border-left:3px solid #ffc107;border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#795548;line-height:1.7}
+
+/* EMPTY */
+.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.empty-icon{font-size:44px;margin-bottom:10px}
+
+/* NO CAR */
+.no-car{text-align:center;padding:50px 20px;color:var(--muted)}
+
+/* TOAST */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:white;padding:12px 22px;border-radius:6px;font-size:13px;z-index:999;opacity:0;transition:all 0.3s;white-space:nowrap;pointer-events:none;font-family:'Noto Sans JP',sans-serif;letter-spacing:0.05em}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:4px 0 16px}
+
+/* PHONE FLAG */
+.phone-wrap{display:flex;gap:8px}
+.phone-prefix{padding:11px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;color:var(--ink);background:white;font-family:'Noto Sans JP',sans-serif;width:90px}
+
+/* AVAILABLE BADGE */
+.avail-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.avail-dot.ok{background:#4caf50}
+.avail-dot.ng{background:var(--red)}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <h1>NOZOMI <span style="color:var(--red)">日本租車</span></h1>
+  <p>讀取中...</p>
+</div>
+
+<header class="header">
+  <div style="flex:1">
+    <div class="header-logo">NOZOMI <span>日本租車</span></div>
+    <div class="header-sub">NOZOMI JAPAN CAR RENTAL</div>
+  </div>
+  <div id="header-user" class="user-avatar-placeholder" onclick="showPage('profile',document.querySelectorAll('.nav-tab')[3])">👤</div>
+  <button class="admin-btn" onclick="openAdmin()">管理員</button>
+</header>
+
+<nav class="nav">
+  <button class="nav-tab active" onclick="showPage('cars',this)">
+    <span class="nav-icon">🚗</span>車輛一覽
+  </button>
+  <button class="nav-tab" onclick="showPage('booking',this)">
+    <span class="nav-icon">📋</span>預約
+  </button>
+  <button class="nav-tab" onclick="showPage('mybooking',this)">
+    <span class="nav-icon">✅</span>我的預約
+  </button>
+  <button class="nav-tab" onclick="showPage('profile',this)">
+    <span class="nav-icon">👤</span>會員
+  </button>
+</nav>
+
+<!-- 車輛頁面 -->
+<div id="page-cars" class="page active">
+  <div class="sec-head">
+    <h2>可用車輛</h2>
+    <p>精選日本車款・即時預約</p>
+  </div>
+  <div class="search-wrap">
+    <input class="search-input" type="text" placeholder="搜尋車型…" oninput="filterCars(this.value)">
+  </div>
+  <div class="filter-tabs" id="filter-tabs">
+    <button class="filter-tab active" onclick="filterByType('all',this)">全部</button>
+    <button class="filter-tab" onclick="filterByType('MPV',this)">MPV</button>
+    <button class="filter-tab" onclick="filterByType('轎車',this)">轎車</button>
+    <button class="filter-tab" onclick="filterByType('SUV',this)">SUV</button>
+  </div>
+  <div class="car-list" id="car-list">
+    <div class="empty"><div class="empty-icon">🚗</div><p>讀取車輛中...</p></div>
+  </div>
+</div>
+
+<!-- 預約頁面 -->
+<div id="page-booking" class="page">
+  <div class="sec-head">
+    <h2>填寫預約</h2>
+    <p>請確認車輛並填寫租賃資訊</p>
+  </div>
+
+  <div id="no-car" class="no-car">
+    <div style="font-size:44px;margin-bottom:10px">🚗</div>
+    <p style="font-size:13px;line-height:1.8;color:var(--muted)">請先從「車輛一覽」<br>選擇您要預約的車輛</p>
+  </div>
+
+  <div id="booking-form" style="display:none">
+    <div class="selected-car-bar">
+      <div class="sc-img" id="sc-img-wrap">🚗</div>
+      <div style="flex:1;min-width:0">
+        <div class="sc-name" id="sc-name">車輛名稱</div>
+        <div class="sc-detail" id="sc-detail">規格</div>
+      </div>
+      <button class="sc-change" onclick="showPage('cars',document.querySelectorAll('.nav-tab')[0])">換車</button>
+    </div>
+
+    <div id="line-login-banner" class="line-banner" style="display:none">
+      <span class="line-banner-icon">💚</span>
+      <div class="line-banner-text">
+        <strong>用 LINE 帳號自動填入資料</strong>
+        <span>姓名和 Email 免手動輸入</span>
+      </div>
+      <button class="btn-line-login" onclick="doLineLogin()">LINE 登入</button>
+    </div>
+
+    <div id="user-logged-bar" class="user-bar" style="display:none">
+      <img id="ub-avatar" src="" style="width:32px;height:32px;border-radius:50%">
+      <div>
+        <div class="user-bar-name" id="ub-name"></div>
+        <div class="user-bar-email" id="ub-email"></div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section">客戶資料</div>
+
+      <div class="form-group">
+        <label class="form-label">電子信箱 <span class="required">*</span></label>
+        <input class="form-input" id="f-email" type="email" placeholder="example@email.com">
+        <div class="form-error" id="e-email">請輸入正確的電子信箱</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">姓名 <span class="required">*</span></label>
+        <input class="form-input" id="f-name" type="text" placeholder="請輸入真實姓名">
+        <div class="form-error" id="e-name">請輸入姓名</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">電話（含國碼）<span class="required">*</span></label>
+        <div class="phone-wrap">
+          <select class="phone-prefix" id="f-countrycode">
+            <option value="+886">🇹🇼 +886</option>
+            <option value="+81">🇯🇵 +81</option>
+            <option value="+1">🇺🇸 +1</option>
+            <option value="+852">🇭🇰 +852</option>
+            <option value="+65">🇸🇬 +65</option>
+          </select>
+          <input class="form-input" id="f-phone" type="tel" placeholder="912345678" style="flex:1">
+        </div>
+        <div class="form-hint">台灣請去掉開頭的 0，例如：0912345678 → 912345678</div>
+        <div class="form-error" id="e-phone">請輸入正確的電話號碼</div>
+      </div>
+
+      <div class="form-section">租車資訊</div>
+
+      <div class="form-group">
+        <label class="form-label">取車時間 <span class="required">*</span></label>
+        <input class="form-input" id="f-start" type="datetime-local">
+        <div class="form-hint">最早可預約：<span id="min-date-text"></span>・受理時間：09:00〜18:00</div>
+        <div class="form-error" id="e-start">請選擇正確的取車時間</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">還車時間 <span class="required">*</span></label>
+        <input class="form-input" id="f-end" type="datetime-local">
+        <div class="form-error" id="e-end">還車時間需晚於取車時間</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">交車地點 <span class="required">*</span></label>
+        <select class="form-select" id="f-location">
+          <option value="成田空港第二航廈">成田空港第二航廈</option>
+          <option value="NOZOMI株式会社成田営業所">NOZOMI 株式会社成田営業所</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="flight-group" style="display:none">
+        <label class="form-label">抵達航班</label>
+        <input class="form-input" id="f-flight" type="text" placeholder="例：JL123">
+        <div class="form-hint">選擇成田空港取車時請填寫</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">選擇保險 <span class="required">*</span></label>
+        <select class="form-select" id="f-insurance">
+          <option value="標準方案｜已包含於租金">標準方案｜已包含於租金</option>
+          <option value="免責方案｜日額 ¥1,100">免責方案｜日額 ¥1,100</option>
+          <option value="完全方案｜日額 ¥2,750">完全方案｜日額 ¥2,750</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">折扣碼</label>
+        <input class="form-input" id="f-discount" type="text" placeholder="有折扣碼請輸入（選填）">
+      </div>
+
+      <div class="price-preview" id="price-preview">
+        <div class="price-preview-row">
+          <span style="font-size:13px;color:var(--muted)">預估費用</span>
+          <span class="price-total" id="total-price">¥0</span>
+        </div>
+        <div class="price-breakdown" id="price-breakdown"></div>
+      </div>
+
+      <div class="notice">
+        ⚠️ 送出預約申請不代表預約已成立。請務必於收到「請款通知」後完成付款，並以收到「預約確定」作為正式預約成立之依據。
+      </div>
+
+      <button class="btn-submit" id="submit-btn" onclick="submitBooking()">送出預約申請</button>
+    </div>
+  </div>
+</div>
+
+<!-- 我的預約 -->
+<div id="page-mybooking" class="page">
+  <div class="sec-head">
+    <h2>我的預約</h2>
+    <p>查看及管理您的租車紀錄</p>
+  </div>
+  <div id="booking-list"></div>
+</div>
+
+<!-- 會員頁面 -->
+<div id="page-profile" class="page">
+  <div class="sec-head">
+    <h2>會員資料</h2>
+    <p>管理您的個人資訊</p>
+  </div>
+
+  <div id="profile-not-logged">
+    <div class="notice">尚未登入 LINE 帳號，登入後可自動帶入姓名與信箱。</div>
+    <button class="btn-submit" onclick="doLineLogin()" style="background:var(--green)">
+      用 LINE 帳號登入
+    </button>
+  </div>
+
+  <div id="profile-logged" style="display:none">
+    <div style="text-align:center;padding:24px 0">
+      <img id="profile-avatar" src="" style="width:72px;height:72px;border-radius:50%;border:3px solid var(--border);margin-bottom:12px">
+      <div style="font-family:'Shippori Mincho',serif;font-size:20px;font-weight:700" id="profile-name"></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px" id="profile-email"></div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section">補充資料</div>
+      <div class="form-group">
+        <label class="form-label">電話（含國碼）</label>
+        <div class="phone-wrap">
+          <select class="phone-prefix" id="p-countrycode">
+            <option value="+886">🇹🇼 +886</option>
+            <option value="+81">🇯🇵 +81</option>
+            <option value="+1">🇺🇸 +1</option>
+          </select>
+          <input class="form-input" id="p-phone" type="tel" placeholder="912345678" style="flex:1">
+        </div>
+      </div>
+      <button class="btn-submit" onclick="saveProfile()">儲存資料</button>
+    </div>
+
+    <button onclick="doLogout()" style="width:100%;margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:white;font-size:14px;color:var(--muted);cursor:pointer;font-family:'Noto Sans JP',sans-serif">
+      登出
+    </button>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="detail-content"></div>
+    <button class="btn-close" onclick="closeModal('detail-modal')">關閉</button>
+  </div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal-overlay" id="admin-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="admin-login-view">
+      <div style="text-align:center;margin-bottom:20px;font-size:36px">🔐</div>
+      <div class="modal-title" style="text-align:center;margin-bottom:20px">管理員登入</div>
+      <div class="form-group">
+        <label class="form-label">帳號</label>
+        <input class="form-input" id="a-user" type="text" placeholder="admin">
+      </div>
+      <div class="form-group">
+        <label class="form-label">密碼</label>
+        <input class="form-input" id="a-pass" type="password" placeholder="••••••">
+      </div>
+      <button class="btn-submit" onclick="doAdminLogin()">登入</button>
+      <button class="btn-close" style="margin-top:10px" onclick="closeModal('admin-modal')">取消</button>
+    </div>
+    <div id="admin-panel" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div class="modal-title" style="margin:0">管理員後台</div>
+        <button onclick="closeModal('admin-modal')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-num" id="s-total">0</div><div class="stat-lbl">總預約數</div></div>
+        <div class="stat"><div class="stat-num" id="s-pending" style="color:#f59e0b">0</div><div class="stat-lbl">待確認</div></div>
+        <div class="stat"><div class="stat-num" id="s-cars">0</div><div class="stat-lbl">車輛數</div></div>
+        <div class="stat"><div class="stat-num" id="s-revenue" style="font-size:16px">NT$0</div><div class="stat-lbl">本月收入</div></div>
+      </div>
+      <div class="admin-tabs">
+        <button class="admin-tab active" onclick="switchAdminTab('pending',this)">待確認</button>
+        <button class="admin-tab" onclick="switchAdminTab('all',this)">全部預約</button>
+        <button class="admin-tab" onclick="switchAdminTab('fleet',this)">車隊</button>
+      </div>
+      <div id="admin-content"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const LIFF_ID = '2010174964-dwj5ccUO';
+const SHEET_ID = '1QimOCHTVNkF7S1jEIeV_Qfd-zu5GAFmCf19r6yLhZYM';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzS2miu_2m__Ocl8F82Xn2RxRhWbmlo5yH6y0bOv4FbF13jvq68UppsCpfKfpZqVq4b/exec';
+
+let cars = [];
+let bookings = JSON.parse(localStorage.getItem('nozomi_bookings') || '[]');
+let selectedCar = null;
+let lineUser = null;
+let adminLoggedIn = false;
+let currentAdminTab = 'pending';
+
+// Init
+async function init() {
+  try {
+    if (typeof liff === 'undefined') throw new Error('LIFF SDK not loaded');
+    await liff.init({ liffId: LIFF_ID });
+    if (liff.isInClient()) {
+      if (!liff.isLoggedIn()) {
+        liff.login({ redirectUri: window.location.href });
+        return;
+      }
+      const profile = await liff.getProfile();
+      lineUser = { name: profile.displayName, avatar: profile.pictureUrl, userId: profile.userId };
+      try {
+        const idToken = liff.getDecodedIDToken();
+        if (idToken && idToken.email) lineUser.email = idToken.email;
+      } catch(e2) {}
+      updateUserUI();
+    }
+  } catch(e) {
+    console.log('LIFF not available, browser mode:', e.message);
+  }
+
+  await loadCars();
+  setMinDates();
+  setupFormListeners();
+  document.getElementById('loading').style.display = 'none';
+}
+
+async function getEmail() {
+  try {
+    const ctx = liff.getContext();
+    return ctx?.email || '';
+  } catch(e) { return ''; }
+}
+
+function updateUserUI() {
+  if (!lineUser) return;
+  const el = document.getElementById('header-user');
+  if (lineUser.avatar) {
+    el.outerHTML = `<img class="user-avatar" src="${lineUser.avatar}" onclick="showPage('profile',document.querySelectorAll('.nav-tab')[3])">`;
+  }
+  document.getElementById('line-login-banner').style.display = 'none';
+  const bar = document.getElementById('user-logged-bar');
+  bar.style.display = 'flex';
+  document.getElementById('ub-name').textContent = lineUser.name;
+  document.getElementById('ub-email').textContent = lineUser.email || '';
+  if (lineUser.name) document.getElementById('f-name').value = lineUser.name;
+  if (lineUser.email) document.getElementById('f-email').value = lineUser.email;
+  const saved = JSON.parse(localStorage.getItem('nozomi_profile') || '{}');
+  if (saved.phone) {
+    const parts = parsePhone(saved.phone);
+    document.getElementById('f-countrycode').value = parts.code;
+    document.getElementById('f-phone').value = parts.num;
+  }
+  if (saved.email) document.getElementById('f-email').value = saved.email;
+
+  // Profile page
+  const pl = document.getElementById('profile-logged');
+  const pnl = document.getElementById('profile-not-logged');
+  pl.style.display = 'block';
+  pnl.style.display = 'none';
+  if (lineUser.avatar) document.getElementById('profile-avatar').src = lineUser.avatar;
+  document.getElementById('profile-name').textContent = lineUser.name;
+  document.getElementById('profile-email').textContent = lineUser.email || '';
+  if (saved.phone) {
+    const parts = parsePhone(saved.phone);
+    document.getElementById('p-countrycode').value = parts.code;
+    document.getElementById('p-phone').value = parts.num;
+  }
+}
+
+function parsePhone(phone) {
+  const codes = ['+886','+81','+1','+852','+65'];
+  for (const c of codes) {
+    if (phone.startsWith(c)) return { code: c, num: phone.slice(c.length) };
+  }
+  return { code: '+886', num: phone };
+}
+
+function doLineLogin() {
+  if (typeof liff === 'undefined') { toast('請在 LINE App 中開啟'); return; }
+  if (!liff.isInClient()) { toast('請在 LINE App 中開啟此頁面後登入'); return; }
+  liff.login();
+}
+
+function doLogout() {
+  if (typeof liff !== 'undefined') liff.logout();
+  lineUser = null;
+  location.reload();
+}
+
+function saveProfile() {
+  const code = document.getElementById('p-countrycode').value;
+  const num = document.getElementById('p-phone').value.trim();
+  const pemail = document.getElementById('p-email') ? document.getElementById('p-email').value.trim() : (lineUser ? lineUser.email || '' : '');
+  const phone = code + num;
+  localStorage.setItem('nozomi_profile', JSON.stringify({ phone, email: pemail }));
+  document.getElementById('f-countrycode').value = code;
+  document.getElementById('f-phone').value = num;
+  if (pemail) document.getElementById('f-email').value = pemail;
+  toast('資料已儲存');
+}
+
+// Load cars from Google Sheets
+async function loadCars() {
+  try {
+    var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent('車輛資料');
+    var res = await fetch(url);
+    var csv = await res.text();
+    var lines = csv.trim().split('\n');
+    var seen = {};
+    cars = [];
+    for (var i = 1; i < lines.length; i++) {
+      var row = lines[i].split(',').map(function(c){ return c.replace(/^"|"$/g,'').trim(); });
+      var id = row[0], brand = row[2], carmodel = row[3];
+      var type = row[5], seats = row[6], trans = row[7];
+      var fuel = row[9], status = row[12];
+      var price = parseInt(row[20]) || 0;
+      var photo = (row[21]||'').trim();
+      if (status === '可預約' && id && !seen[id]) {
+        seen[id] = true;
+        cars.push({ id, name: brand + ' ' + carmodel, model: type + '・' + seats, photo: photo, price, seats, fuel, trans, status: 'available' });
+      }
+    }
+    if (cars.length > 0) renderCars(cars);
+    else document.getElementById('car-list').innerHTML = '<div class="empty"><div class="empty-icon">🚗</div><p>目前沒有可用車輛</p></div>';
+    updateAdminStats();
+  } catch(e) {
+    document.getElementById('car-list').innerHTML = '<div class="empty"><div class="empty-icon">🚗</div><p>載入失敗，請重新整理</p></div>';
+  }
+}
+
+function renderCars(list) {
+  const el = document.getElementById('car-list');
+  if (!list.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><p>找不到符合的車輛</p></div>'; return; }
+  el.innerHTML = list.map(c => `
+    <div class="car-card" onclick="selectCar('${c.id}')">
+      <div class="car-img">
+        <span class="car-flag">🇯🇵</span>
+        ${c.photo ? `<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;" onerror="this.style.display='none'">` : `<span class="car-img-placeholder">🚗</span>`}
+        <span class="car-badge ${c.status==='available'?'badge-ok':'badge-ng'}">${c.status==='available'?'予約可能':'貸出中'}</span>
+      </div>
+      <div class="car-body">
+        <div class="car-name">${c.name}</div>
+        <div class="car-id">${c.id}</div>
+        <div class="car-specs">
+          <span class="spec">${c.seats}</span>
+          <span class="spec">${c.fuel}</span>
+          <span class="spec">${c.trans}</span>
+        </div>
+        <div class="car-footer">
+          <div class="price">¥${Number(c.price).toLocaleString()} <span>/ 日</span></div>
+          <button class="btn-book" ${c.status!=='available'?'disabled':''} onclick="event.stopPropagation();selectCar('${c.id}')">${c.status==='available'?'立即預約':'貸出中'}</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterCars(q) {
+  renderCars(cars.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.id.includes(q)));
+}
+
+function filterByType(type, btn) {
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  if (type === 'all') renderCars(cars);
+  else renderCars(cars.filter(c => c.model.includes(type)));
+}
+
+function selectCar(id) {
+  selectedCar = cars.find(c => c.id === id);
+  if (!selectedCar) return;
+  document.getElementById('sc-name').textContent = selectedCar.name;
+  document.getElementById('sc-detail').textContent = selectedCar.id + '・' + selectedCar.model + '・NT$' + Number(selectedCar.price).toLocaleString() + '/日';
+  document.getElementById('no-car').style.display = 'none';
+  document.getElementById('booking-form').style.display = 'block';
+  if (!lineUser) document.getElementById('line-login-banner').style.display = 'flex';
+  calcPrice();
+  showPage('booking', document.querySelectorAll('.nav-tab')[1]);
+}
+
+// Date setup
+function setMinDates() {
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate() + 3);
+  minDate.setHours(9, 0, 0, 0);
+  const fmt = d => {
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  document.getElementById('f-start').min = fmt(minDate);
+  document.getElementById('f-start').value = fmt(minDate);
+  const endDate = new Date(minDate);
+  endDate.setDate(endDate.getDate() + 3);
+  endDate.setHours(18, 0, 0, 0);
+  document.getElementById('f-end').min = fmt(minDate);
+  document.getElementById('f-end').value = fmt(endDate);
+  const md = minDate;
+  document.getElementById('min-date-text').textContent = `${md.getFullYear()}/${md.getMonth()+1}/${md.getDate()} 09:00`;
+  calcPrice();
+}
+
+function setupFormListeners() {
+  document.getElementById('f-start').addEventListener('change', calcPrice);
+  document.getElementById('f-end').addEventListener('change', calcPrice);
+  document.getElementById('f-insurance').addEventListener('change', calcPrice);
+  document.getElementById('f-location').addEventListener('change', function() {
+    document.getElementById('flight-group').style.display = this.value.includes('成田空港') ? 'block' : 'none';
+  });
+}
+
+function calcPrice() {
+  if (!selectedCar) return;
+  const s = document.getElementById('f-start').value;
+  const e = document.getElementById('f-end').value;
+  if (!s || !e) return;
+  const days = Math.max(0, (new Date(e) - new Date(s)) / 86400000);
+  if (days <= 0) return;
+  const daysRounded = Math.ceil(days);
+  const carTotal = daysRounded * selectedCar.price;
+  const insurance = document.getElementById('f-insurance').value;
+  let insuranceFee = 0;
+  if (insurance.includes('1,100')) insuranceFee = 1100 * daysRounded;
+  else if (insurance.includes('2,750')) insuranceFee = 2750 * daysRounded;
+  const total = carTotal + insuranceFee;
+  document.getElementById('total-price').textContent = '¥' + total.toLocaleString();
+  let breakdown = daysRounded + ' 日 × ¥' + Number(selectedCar.price).toLocaleString() + ' / 日';
+  if (insuranceFee > 0) breakdown += '　＋　保險 ¥' + insuranceFee.toLocaleString();
+  document.getElementById('price-breakdown').textContent = breakdown;
+  document.getElementById('price-preview').style.display = 'block';
+}
+
+function validateForm() {
+  let ok = true;
+  const email = document.getElementById('f-email').value.trim();
+  const name = document.getElementById('f-name').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const start = document.getElementById('f-start').value;
+  const end = document.getElementById('f-end').value;
+
+  const showErr = (id, show) => {
+    document.getElementById('e-' + id).style.display = show ? 'block' : 'none';
+    document.getElementById('f-' + id).classList.toggle('error', show);
+  };
+
+  if (!email || !/\S+@\S+\.\S+/.test(email)) { showErr('email', true); ok = false; } else showErr('email', false);
+  if (!name) { showErr('name', true); ok = false; } else showErr('name', false);
+  if (!phone || phone.length < 8) { showErr('phone', true); ok = false; } else showErr('phone', false);
+
+  if (!start) { showErr('start', true); ok = false; }
+  else {
+    const startH = new Date(start).getHours();
+    const startDate = new Date(start);
+    const minDate = new Date(); minDate.setDate(minDate.getDate() + 3);
+    if (startDate < minDate || startH < 9 || startH >= 18) {
+      showErr('start', true); ok = false;
+      document.getElementById('e-start').textContent = startDate < minDate ? '取車時間需為3天後以上' : '取車時間需在 09:00〜18:00 之間';
+    } else showErr('start', false);
+  }
+
+  if (!end || new Date(end) <= new Date(start)) { showErr('end', true); ok = false; } else showErr('end', false);
+
+  return ok;
+}
+
+async function submitBooking() {
+  if (!selectedCar) { toast('請選擇車輛'); return; }
+  if (!validateForm()) { toast('請確認填寫內容'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.textContent = '送出中...'; btn.disabled = true;
+
+  const code = document.getElementById('f-countrycode').value;
+  const num = document.getElementById('f-phone').value.trim();
+  const phone = code + num;
+
+  const start = document.getElementById('f-start').value;
+  const end = document.getElementById('f-end').value;
+  const days = Math.ceil((new Date(end) - new Date(start)) / 86400000);
+  const price = days * selectedCar.price;
+
+  const payload = {
+    email: document.getElementById('f-email').value.trim(),
+    name: document.getElementById('f-name').value.trim(),
+    phone,
+    car: selectedCar.name,
+    carId: selectedCar.id,
+    startDate: start.replace('T', ' '),
+    endDate: end.replace('T', ' '),
+    days, price,
+    insurance: document.getElementById('f-insurance').value,
+    location: document.getElementById('f-location').value,
+    flight: document.getElementById('f-flight').value.trim(),
+    discount: document.getElementById('f-discount').value.trim(),
+    lineUserId: lineUser ? lineUser.userId : '',
+    company: ''
+  };
+
+  try {
+    const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const result = await res.json();
+    if (result.success) {
+      const bk = { id: result.bookingId, carName: selectedCar.name, carId: selectedCar.id, name: payload.name, phone, start: payload.startDate, end: payload.endDate, location: payload.location, price, days, status: 'confirmed' };
+      bookings.unshift(bk);
+      localStorage.setItem('nozomi_bookings', JSON.stringify(bookings));
+      const prof = JSON.parse(localStorage.getItem('nozomi_profile') || '{}');
+      prof.email = payload.email; prof.phone = payload.phone;
+      localStorage.setItem('nozomi_profile', JSON.stringify(prof));
+      toast('🎉 預約申請送出！編號：' + result.bookingId);
+      resetForm();
+      setTimeout(() => { showPage('mybooking', document.querySelectorAll('.nav-tab')[2]); renderBookings(); }, 1500);
+    } else {
+      toast('❌ 送出失敗，請再試一次');
+    }
+  } catch(e) {
+    toast('❌ 網路錯誤，請再試一次');
+  } finally {
+    btn.textContent = '送出預約申請'; btn.disabled = false;
+  }
+}
+
+function resetForm() {
+  selectedCar = null;
+  document.getElementById('no-car').style.display = 'block';
+  document.getElementById('booking-form').style.display = 'none';
+  document.getElementById('price-preview').style.display = 'none';
+  setMinDates();
+}
+
+function renderBookings() {
+  const el = document.getElementById('booking-list');
+  if (!bookings.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>目前沒有預約紀錄</p></div>'; return; }
+  el.innerHTML = bookings.map(b => `
+    <div class="booking-card ${b.status}">
+      <div class="bk-header">
+        <span class="bk-id">${b.id}</span>
+        <span class="bk-status st-${b.status}">${b.status==='confirmed'?'已申請':b.status==='cancelled'?'已取消':'已完成'}</span>
+      </div>
+      <div class="bk-car">🚗 ${b.carName}</div>
+      <div class="bk-dates">
+        📅 ${b.start}<br>
+        🔄 ${b.end}<br>
+        📍 ${b.location}
+      </div>
+      <div class="bk-price">¥${Number(b.price).toLocaleString()}</div>
+      <div class="bk-actions">
+        ${b.status==='confirmed'?`<button class="btn-cancel" onclick="cancelBk('${b.id}')">取消申請</button>`:''}
+        <button class="btn-detail" onclick="showDetail('${b.id}')">查看詳情</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function cancelBk(id) {
+  const b = bookings.find(x => x.id === id);
+  if (b) { b.status = 'cancelled'; localStorage.setItem('nozomi_bookings', JSON.stringify(bookings)); renderBookings(); toast('預約 ' + id + ' 已取消'); updateAdminStats(); }
+}
+
+function showDetail(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+  const statusLabel = b.status==='confirmed'?'已申請':b.status==='cancelled'?'已取消':'已完成';
+  document.getElementById('detail-content').innerHTML = `
+    <div class="modal-title">🚗 ${b.carName}</div>
+    <div class="modal-subtitle">${b.id}・<span class="bk-status st-${b.status}">${statusLabel}</span></div>
+    <div class="detail-rows">
+      <div class="detail-row"><span class="detail-label">租借人</span><span class="detail-value">${b.name}</span></div>
+      <div class="detail-row"><span class="detail-label">電話</span><span class="detail-value">${b.phone}</span></div>
+      <div class="detail-row"><span class="detail-label">取車</span><span class="detail-value">${b.start}</span></div>
+      <div class="detail-row"><span class="detail-label">還車</span><span class="detail-value">${b.end}</span></div>
+      <div class="detail-row"><span class="detail-label">天數</span><span class="detail-value">${b.days} 日</span></div>
+      <div class="detail-row"><span class="detail-label">地點</span><span class="detail-value">${b.location}</span></div>
+    </div>
+    <div class="detail-total">
+      <span style="font-size:13px;color:var(--muted)">總費用</span>
+      <span class="detail-total-val">¥${Number(b.price).toLocaleString()}</span>
+    </div>
+  `;
+  openModal('detail-modal');
+}
+
+function showPage(page, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (page === 'mybooking') renderBookings();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+  if (id === 'admin-modal') { document.getElementById('admin-login-view').style.display = 'block'; document.getElementById('admin-panel').style.display = 'none'; }
+}
+
+function openAdmin() { openModal('admin-modal'); }
+
+function doAdminLogin() {
+  const u = document.getElementById('a-user').value;
+  const p = document.getElementById('a-pass').value;
+  if (u === 'admin' && p === '1234') {
+    adminLoggedIn = true;
+    document.getElementById('admin-login-view').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'block';
+    updateAdminStats(); renderAdminContent();
+  } else { toast('帳號或密碼錯誤'); }
+}
+
+function updateAdminStats() {
+  document.getElementById('s-total').textContent = bookings.length;
+  document.getElementById('s-pending').textContent = bookings.filter(b => b.status==='confirmed').length;
+  document.getElementById('s-cars').textContent = cars.length;
+  const rev = bookings.filter(b => b.status!=='cancelled').reduce((s,b) => s + Number(b.price), 0);
+  document.getElementById('s-revenue').textContent = '¥' + rev.toLocaleString();
+}
+
+function switchAdminTab(tab, btn) {
+  currentAdminTab = tab;
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderAdminContent();
+}
+
+function renderAdminContent() {
+  const el = document.getElementById('admin-content');
+  if (currentAdminTab === 'pending') {
+    const list = bookings.filter(b => b.status==='confirmed');
+    if (!list.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><p>目前沒有待確認的預約</p></div>'; return; }
+    el.innerHTML = list.map(b => `
+      <div class="admin-item">
+        <div class="admin-item-left">
+          <h4>🚗 ${b.carName}</h4>
+          <p>${b.name}・${b.start}</p>
+          <p style="color:var(--red);font-weight:500;font-size:12px;margin-top:2px">¥${Number(b.price).toLocaleString()}</p>
+        </div>
+        <div>
+          <button class="btn-approve" onclick="toast('已確認 ${b.id}')">確認</button>
+          <button class="btn-reject" onclick="cancelBk('${b.id}');renderAdminContent()">拒絕</button>
+        </div>
+      </div>
+    `).join('');
+  } else if (currentAdminTab === 'all') {
+    if (!bookings.length) { el.innerHTML = '<div class="empty"><p>目前沒有預約</p></div>'; return; }
+    el.innerHTML = bookings.map(b => `
+      <div class="admin-item">
+        <div class="admin-item-left">
+          <h4>🚗 ${b.carName}</h4>
+          <p>${b.name}・${b.start}</p>
+        </div>
+        <span class="bk-status st-${b.status}">${b.status==='confirmed'?'已申請':b.status==='cancelled'?'已取消':'已完成'}</span>
+      </div>
+    `).join('');
+  } else {
+    el.innerHTML = cars.map(c => `
+      <div class="admin-item">
+        <div class="admin-item-left">
+          <h4>🚗 ${c.name}</h4>
+          <p>${c.id}・¥${Number(c.price).toLocaleString()} / 日</p>
+        </div>
+        <span class="car-badge ${c.status==='available'?'badge-ok':'badge-ng'}">${c.status==='available'?'可用':'貸出'}</span>
+      </div>
+    `).join('');
+  }
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
+});
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Handle URL params for direct page navigation
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('page') === 'mybooking') {
+  showPage('mybooking', document.querySelectorAll('.nav-tab')[2]);
+} else {
+  showPage('cars', document.querySelectorAll('.nav-tab')[0]);
+}
+
+init();
+</script>
+</body>
+</html>
